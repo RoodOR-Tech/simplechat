@@ -194,14 +194,19 @@ def chat():
                 max_completion_tokens=MAX_OUTPUT_TOKENS,
                 stream=True,
             )
+            finish_reason = None
             for chunk in stream:
                 if not chunk.choices:
                     continue
-                delta = chunk.choices[0].delta
-                text = getattr(delta, "content", None)
+                choice = chunk.choices[0]
+                text = getattr(choice.delta, "content", None)
                 if text:
                     yield sse({"type": "delta", "text": text})
-            yield sse({"type": "done"})
+                if getattr(choice, "finish_reason", None):
+                    finish_reason = choice.finish_reason
+            # The client treats anything other than "stop" (e.g. "length" when the
+            # token budget ran out, "content_filter") as an incomplete reply.
+            yield sse({"type": "done", "finish_reason": finish_reason})
         except OpenAIError as exc:
             logger.warning("Model call failed for user=%s model=%s: %s", user, model, exc)
             yield sse({"type": "error", "message": f"The model call failed: {exc.__class__.__name__}."})

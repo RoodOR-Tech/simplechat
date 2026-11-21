@@ -107,15 +107,26 @@
         }
     }
 
+    function describeFinishReason(reason) {
+        if (reason === "length") {
+            return "The reply was cut off because it hit the output token limit (MAX_OUTPUT_TOKENS).";
+        }
+        if (reason === "content_filter") {
+            return "The reply was stopped by the Azure content filter.";
+        }
+        return `The reply ended early (${reason}).`;
+    }
+
     async function sendMessage(text) {
         clearError();
         const model = modelSelect.value;
         const modelLabel = modelSelect.options[modelSelect.selectedIndex]?.textContent;
         history.push({ role: "user", content: text });
-        addMessage("user", text);
+        const userEl = addMessage("user", text);
         const replyEl = addMessage("assistant", "", modelLabel);
         let replyText = "";
         let failed = false;
+        let doneEvent = null;
         setBusy(true);
 
         try {
@@ -133,11 +144,18 @@
                     replyText += event.text;
                     replyEl.textContent = replyText;
                     messagesEl.scrollTop = messagesEl.scrollHeight;
+                } else if (event.type === "done") {
+                    doneEvent = event;
                 } else if (event.type === "error") {
                     failed = true;
                     showError(event.message);
                 }
             });
+            if (!failed && !doneEvent) {
+                // The stream closed without the server's terminal event.
+                failed = true;
+                showError("The reply was interrupted. Please try again.");
+            }
         } catch (err) {
             failed = true;
             showError(err.message);
@@ -145,12 +163,26 @@
             setBusy(false);
         }
 
-        if (failed && !replyText) {
-            // Drop the failed turn so the user can retry without a dangling message.
+        const finishReason = doneEvent ? doneEvent.finish_reason : null;
+        if (!failed && finishReason && finishReason !== "stop") {
+            showError(describeFinishReason(finishReason));
+            if (!replyText) {
+                failed = true;
+            }
+        }
+
+        if (failed) {
+            // Drop the whole turn so the user can retry; a partial reply never
+            // enters history as if it were a completed answer.
             history.pop();
+            userEl.parentElement.remove();
             replyEl.parentElement.remove();
+            if (!messagesEl.querySelector(".message")) {
+                emptyState.classList.remove("d-none");
+            }
             promptInput.value = text;
         } else {
+            // A truncated reply (finish_reason "length") is kept, with the warning shown above.
             history.push({ role: "assistant", content: replyText });
         }
         promptInput.focus();

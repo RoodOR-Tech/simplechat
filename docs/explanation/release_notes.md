@@ -2,6 +2,15 @@
 
 For feature-focused and fix-focused drill-downs by version, see [Features by Version](https://github.com/microsoft/simplechat/tree/main/docs/explanation/features) and [Fixes by Version](https://github.com/microsoft/simplechat/tree/main/docs/explanation/fixes).
 
+### **(v0.261.067)**
+
+#### Bug Fixes
+
+*   **Minimal Chat: Incomplete Replies Reported as Complete**
+    *   The server now passes the model's `finish_reason` with the final stream event. The browser warns when a reply was cut off by the output token limit or stopped by the content filter.
+    *   A stream that closes without its final event, or a reply that is empty because the token budget ran out, is now shown as an error. The turn is dropped from history and the prompt is restored for a retry. Previously it was saved as a completed answer.
+    *   (Ref: `application/minimal_chat/app.py`, `application/minimal_chat/static/chat.js`, [Minimal Chat Incomplete Reply Fix](fixes/MINIMAL_CHAT_INCOMPLETE_REPLY_FIX.md))
+
 ### **(v0.261.066)**
 
 #### New Features

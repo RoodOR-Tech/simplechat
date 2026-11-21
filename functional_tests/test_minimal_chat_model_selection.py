@@ -2,12 +2,13 @@
 # test_minimal_chat_model_selection.py
 """
 Functional test for the Minimal Chat standalone app (application/minimal_chat).
-Version: 0.261.066
+Version: 0.261.067
 Implemented in: 0.261.066
 
 This test ensures that Minimal Chat only exposes and accepts admin-configured
 model deployments, enforces Easy Auth headers, validates conversation payloads,
-and streams model output as server-sent events. The Azure OpenAI client is
+and streams model output as server-sent events with the
+model's finish reason. The Azure OpenAI client is
 replaced with a stub, so no Azure access is needed.
 """
 
@@ -32,11 +33,15 @@ class StubCompletions:
 
     def __init__(self):
         self.calls = []
+        self.finish_reason = "stop"
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
-        for piece in ["Hello", ", ", "world"]:
-            yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=piece))])
+        pieces = ["Hello", ", ", "world"]
+        for index, piece in enumerate(pieces):
+            reason = self.finish_reason if index == len(pieces) - 1 else None
+            yield SimpleNamespace(choices=[SimpleNamespace(
+                delta=SimpleNamespace(content=piece), finish_reason=reason)])
         # Azure sends a final chunk with no choices (usage / content filter results).
         yield SimpleNamespace(choices=[])
 
@@ -122,7 +127,7 @@ def test_primary_functionality():
         events = parse_sse(resp.get_data(as_text=True))
         text = "".join(e["text"] for e in events if e["type"] == "delta")
         assert text == "Hello, world", text
-        assert events[-1] == {"type": "done"}
+        assert events[-1] == {"type": "done", "finish_reason": "stop"}
 
         call = completions.calls[0]
         assert call["model"] == "o4-mini"
@@ -130,6 +135,16 @@ def test_primary_functionality():
         assert "temperature" not in call
         assert call["messages"][0]["role"] == "system"
         assert call["messages"][-1] == {"role": "user", "content": "Again"}
+
+        # A reply cut off by the token budget reports finish_reason "length"
+        # so the browser can warn instead of treating it as complete.
+        completions.finish_reason = "length"
+        resp = client.post("/api/chat", headers=AUTH_HEADERS, json={
+            "model": "gpt-4.1",
+            "messages": [{"role": "user", "content": "Long answer please"}],
+        })
+        events = parse_sse(resp.get_data(as_text=True))
+        assert events[-1] == {"type": "done", "finish_reason": "length"}, events[-1]
 
         print("Test passed!")
         return True
