@@ -2,6 +2,17 @@
 
 For feature-focused and fix-focused drill-downs by version, see [Features by Version](https://github.com/microsoft/simplechat/tree/main/docs/explanation/features) and [Fixes by Version](https://github.com/microsoft/simplechat/tree/main/docs/explanation/fixes).
 
+### **(v0.261.066)**
+
+#### New Features
+
+*   **Minimal Chat (Standalone App)**
+    *   Adds a small, standalone chat app in `application/minimal_chat/`. Users sign in with Entra ID, choose a model from an admin-approved list of Azure OpenAI / AI Foundry deployments, and get streamed replies.
+    *   Model calls use the web app's managed identity, so no API keys are stored. Only deployments listed in `AZURE_OPENAI_DEPLOYMENTS` can be called.
+    *   Includes Bicep for App Service, Easy Auth, and the *Cognitive Services OpenAI User* role assignment. There is no database; conversations last for the browser session.
+    *   The main SimpleChat app is unchanged.
+    *   (Ref: `application/minimal_chat/app.py`, `application/minimal_chat/infra/main.bicep`, [Minimal Chat](features/MINIMAL_CHAT.md), `functional_tests/test_minimal_chat_model_selection.py`)
+
 ### **(v0.261.064)**
 
 #### Bug Fixes
