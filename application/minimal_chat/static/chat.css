@@ -1,0 +1,26 @@
+/* chat.css */
+
+.message {
+    max-width: 48rem;
+    margin: 0 auto 1rem auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.message .role {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.25rem;
+}
+
+.message.user .body {
+    background: var(--bs-secondary-bg);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+}
+
+#chat-form textarea {
+    resize: none;
+}
